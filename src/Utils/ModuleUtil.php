@@ -47,4 +47,11 @@ class ModuleUtil
         }
         return $retval;
     }
+    public static function getUserModules()
+    {
+        $retval = [];
+        $uuid = env('SHOP_UUID', 'NA');
+        $retval = \Megaads\Clara\Models\App::where('shop_uuid', '=', $uuid)->get()->toArray();
+        return $retval;
+    }
 }

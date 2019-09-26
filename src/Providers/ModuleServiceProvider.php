@@ -44,24 +44,24 @@ class ModuleServiceProvider extends ServiceProvider
         // Load enabled modules
         $moduleDir = app_path() . '/Modules/';
         if (is_dir($moduleDir)) {
-            $moduleConfigs = ModuleUtil::getAllModuleConfigs();
-            foreach ($moduleConfigs['modules'] as $moduleConfig) {
-                if ($moduleConfig['status'] == 'disable') {
+            $modules = ModuleUtil::getUserModules();
+            foreach ($modules as $module) {
+                if ($module['status'] != 'enable') {
                     continue;
                 }
-                $moduleNamespace = $moduleConfig['namespace'];
-                $module = $moduleConfig['name'];
-                $currentModuleDir = app_path() . '/Modules/' . $module;
+                $moduleNamespace = $module['name_space'];
+                $moduleName = $module['name'];
+                $currentModuleDir = app_path() . '/Modules/' . $moduleName;
                 $appFile = $currentModuleDir . '/start.php';
                 if ($this->files->exists($appFile)) {
                     include $appFile;
                 }
                 if ($this->files->exists($currentModuleDir . '/Kernel.php')) {
-                    $this->loadKernel($module);
+                    $this->loadKernel($moduleName);
                 }
                 $routeDir = $currentModuleDir . '/Routes';
                 if ($this->files->isDirectory($routeDir)) {
-                    $this->loadRoutes($routeDir, $module);
+                    $this->loadRoutes($routeDir, $moduleName);
                 }
                 $configDir = $currentModuleDir . '/Config';
                 if ($this->files->isDirectory($configDir)) {
@@ -71,7 +71,7 @@ class ModuleServiceProvider extends ServiceProvider
                 if ($this->files->isDirectory($viewDir)) {
                     $this->loadViewsFrom($viewDir, $moduleNamespace);
                 }
-                \Module::action("module_loaded", $moduleConfig);
+                \Module::action("module_loaded", $module);
             }
         }
     }
