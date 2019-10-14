@@ -51,7 +51,11 @@ class ModuleUtil
     {
         $retval = [];
         $uuid = env('SHOP_UUID', 'NA');
-        $retval = \Megaads\Clara\Models\App::where('shop_uuid', '=', $uuid)->get()->toArray();
+        $retval = \Megaads\Clara\Models\App::whereIn('shop_uuid', ['common', $uuid])
+            ->where('status', '=', 'enable')
+            ->orderBy('sorder')
+            ->get()
+            ->toArray();
         return $retval;
     }
 }

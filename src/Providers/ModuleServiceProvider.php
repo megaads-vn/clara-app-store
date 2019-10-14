@@ -46,9 +46,6 @@ class ModuleServiceProvider extends ServiceProvider
         if (is_dir($moduleDir)) {
             $modules = ModuleUtil::getUserModules();
             foreach ($modules as $module) {
-                if ($module['status'] != 'enable') {
-                    continue;
-                }
                 $moduleNamespace = $module['name_space'];
                 $moduleName = $module['name'];
                 $currentModuleDir = app_path() . '/Modules/' . $moduleName;
