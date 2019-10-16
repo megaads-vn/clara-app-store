@@ -50,4 +50,8 @@ class Module extends EventManager
     {
         return getAllModuleOptions($module);
     }
+    public function moduleName($namespace)
+    {
+        return ModuleUtil::getModuleName($namespace);
+    }
 }

@@ -58,4 +58,16 @@ class ModuleUtil
             ->toArray();
         return $retval;
     }
+    public static function getModuleName($namespace)
+    {
+        $retval = null;
+        $uuid = env('SHOP_UUID', 'NA');
+        $app = \Megaads\Clara\Models\App::whereIn('shop_uuid', ['common', $uuid])
+            ->where('name_space', '=', $namespace)
+            ->first();
+        if ($app) {
+            $retval = $app->name;
+        }
+        return $retval;
+    }
 }
