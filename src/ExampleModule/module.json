@@ -12,6 +12,8 @@
         "php": ">=5.6.4",
         "laravel/framework": "5.4.*"
     },
+    "require-modules": {
+    },
     "options": {
         "option.header": {
             "name": "Module header",

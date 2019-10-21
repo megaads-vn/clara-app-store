@@ -54,4 +54,26 @@ class Module extends EventManager
     {
         return ModuleUtil::getModuleName($namespace);
     }
+    public function missingRequiredModules($moduleName)
+    {
+        $retval = [];
+        $loadedModules = ModuleUtil::getUserModules();
+        $moduleSpecs = ModuleUtil::getModuleSpecs(app_path() . '/Modules/' . $moduleName);
+        if (array_key_exists('require-modules', $moduleSpecs)) {
+            $requiredModules = $moduleSpecs['require-modules'];
+            foreach ($requiredModules as $key => $requiredModule) {
+                $isLoaded = false;
+                foreach ($loadedModules as $loadedModule) {
+                    if ($requiredModule['name'] == $loadedModule['name']) {
+                        $isLoaded = true;
+                        break;
+                    }
+                }
+                if (!$isLoaded) {
+                    $retval[] = $requiredModule;
+                }
+            }
+        }
+        return $retval;
+    }
 }
