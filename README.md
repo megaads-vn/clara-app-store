@@ -123,6 +123,19 @@ php artisan module:remove <ModuleName> ...
 php artisan module:remove-all
 ```
 
+### Submit a new module
+
+```
+php artisan module:submit
+```
+
+### Update a module
+``branch`` is optional. By default using ``master``
+```
+php artisan module:submit --update --module='' --branch=''
+```
+
+
 ## Module Action
 
 ### Fire a action
