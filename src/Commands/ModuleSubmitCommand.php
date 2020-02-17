@@ -81,10 +81,11 @@ class ModuleSubmitCommand extends AbtractCommand
         // Clone or pull from repository url
         $this->downloadPackage($repo, $branch, $moduleName);
         // Build insert params
+        $formatModuleName = $this->formatModuleFolderName($moduleName, false);
         $insertParams = [
             'name' => $moduleName,
             'name_space' => $moduleNamespace,
-            'package_url' => url('/modules/' . $moduleName . '.zip'),
+            'package_url' => url('/modules/' . $formatModuleName . '.zip'),
             'description' => $moduleDesc, 
             'image' => $moduleImage,
             'repository' => $repo,
@@ -150,7 +151,7 @@ class ModuleSubmitCommand extends AbtractCommand
      */
     private function downloadPackage($repo, $branch, $name) {
         //Check module is exists on modules directory
-        $modulePath = public_path('/modules/' . $name);
+        $modulePath = $this->formatModuleFolderName($name);
         $result = $this->checkModuleDirectory($modulePath);
         $findGitLib = new Process("which git");
         $findGitLib->run();
@@ -194,7 +195,8 @@ class ModuleSubmitCommand extends AbtractCommand
      * @return void
      */
     private function compressDirectory($moduleName) {
-        $modulePath = public_path('modules/' . $moduleName);
+        $moduleName = $this->formatModuleFolderName($moduleName, false);
+        $modulePath = public_path('/modules/' . $moduleName);
         $zipFileName = $moduleName . ".zip";
         $zipFile = new \ZipArchive();
         $zipFile->open(public_path('modules/' . $zipFileName), \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
@@ -215,6 +217,7 @@ class ModuleSubmitCommand extends AbtractCommand
      * @return void
      */
     private function removeDirectory($moduleName) {
+        $moduleName = $this->formatModuleFolderName($moduleName, false);
         $modulePath = public_path('modules/' . $moduleName);
         $deleteDir = new Process("rm -rf $modulePath");
         $deleteDir->run();
@@ -279,5 +282,14 @@ class ModuleSubmitCommand extends AbtractCommand
             }
         }
         return rtrim($retval, '-');
+    }
+
+    private function formatModuleFolderName($moduleName, $getPath = true) {
+        $moduleName = preg_replace('/\s/i', '', $moduleName);
+        $retval = public_path('/modules/' . $moduleName);
+        if (!$getPath) {
+            $retval = $moduleName;
+        }
+        return $retval;
     }
 }
