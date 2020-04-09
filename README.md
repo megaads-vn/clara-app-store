@@ -123,19 +123,6 @@ php artisan module:remove <ModuleName> ...
 php artisan module:remove-all
 ```
 
-### Submit a new module
-
-```
-php artisan module:submit
-```
-
-### Update a module
-``branch`` is optional. By default using ``master``
-```
-php artisan module:submit --update --module='' --branch=''
-```
-
-
 ## Module Action
 
 ### Fire a action
@@ -179,6 +166,11 @@ Module::view('view_name', [params], IS_MULTI_LAYER);
 ```php
 Module::view('view_name', 'This is a view placeholder', IS_MULTI_LAYER);
 ```
+```php
+Module::view('view_name', function() {
+    return 'This is a view placeholder';
+}, IS_MULTI_LAYER);
+```
 
 Using blade statement
 ```php
@@ -194,6 +186,24 @@ Module::onView('view_name', function ($params) {
 Handle a view using a controller
 ```php
 Module::onView('view_name', 'Modules\Example\Controllers\HomeController@index', PRIORITY);
+```
+## Module variable
+
+### Register a variable
+Using PHP
+```php
+$variable = Module::variable('handle', $default, PRIORITY);
+```
+
+Using blade statement
+```php
+@variable('variable_name', 'handle', $default);
+```
+
+### Handle a variable
+```php
+Module::onVariable('hanlde', function ($params) {
+}, PRIORITY, NUUM_OF_PARAM);
 ```
 
 ## Module Methods
