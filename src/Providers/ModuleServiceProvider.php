@@ -11,6 +11,7 @@ use Megaads\Clara\Commands\ModuleListCommand;
 use Megaads\Clara\Commands\ModuleMakeCommand;
 use Megaads\Clara\Commands\ModuleRemoveAllCommand;
 use Megaads\Clara\Commands\ModuleRemoveCommand;
+use Megaads\Clara\Commands\ModuleSubmitCommand;
 use Megaads\Clara\Module;
 use Megaads\Clara\Utils\ModuleUtil;
 
@@ -25,6 +26,7 @@ class ModuleServiceProvider extends ServiceProvider
         ModuleDisableCommand::class,
         ModuleListCommand::class,
         ModuleDownloadCommand::class,
+        ModuleSubmitCommand::class
     ];
     /**
      * Bootstrap the application services.
@@ -40,6 +42,16 @@ class ModuleServiceProvider extends ServiceProvider
         // Adds a directive in Blade for views
         Blade::directive('view', function ($expression) {
             return "<?php echo Module::view({$expression}); ?>";
+        });
+        Blade::directive('variable', function ($expression) {
+            $expression = str_replace(', ', ',', $expression);
+            $pos = strpos($expression, ',');
+            if ($pos >= 0) {
+                $variable = substr($expression, 0, $pos);
+                $variable = preg_replace("/[\"']+/", '', $variable);
+                $params = substr($expression, $pos + 1);
+                return "<?php \${$variable} = Module::variable({$params}); ?>";
+            }
         });
         // Load enabled modules
         $moduleDir = app_path() . '/Modules/';

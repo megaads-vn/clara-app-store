@@ -187,6 +187,24 @@ Handle a view using a controller
 ```php
 Module::onView('view_name', 'Modules\Example\Controllers\HomeController@index', PRIORITY);
 ```
+## Module variable
+
+### Register a variable
+Using PHP
+```php
+$variable = Module::variable('handle', $default, PRIORITY);
+```
+
+Using blade statement
+```php
+@variable('variable_name', 'handle', $default);
+```
+
+### Handle a variable
+```php
+Module::onVariable('hanlde', function ($params) {
+}, PRIORITY, NUUM_OF_PARAM);
+```
 
 ## Module Methods
 
