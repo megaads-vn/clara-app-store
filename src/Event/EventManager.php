@@ -15,6 +15,7 @@ class EventManager
      *
      */
     protected $view;
+
     protected $hookIdx = [];
     protected $variable;
 
@@ -188,7 +189,6 @@ class EventManager
         return $this->view->fire($hook, $args, $isMultiLayer);
     }
 
-
     /**
      * Add an variable listener.
      *
@@ -238,5 +238,14 @@ class EventManager
         } else {
             return $default;
         }
+    }
+    /**
+     * Response an asset url.
+     * 
+     * @return String
+     */
+    public function asset($assetPath)
+    {        
+        return  '/modules/' . $assetPath;
     }
 }

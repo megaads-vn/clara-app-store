@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
 use Megaads\Clara\Commands\ModuleDisableCommand;
 use Megaads\Clara\Commands\ModuleDownloadCommand;
+use Megaads\Clara\Commands\ModuleInstallCommand;
 use Megaads\Clara\Commands\ModuleEnableCommand;
 use Megaads\Clara\Commands\ModuleListCommand;
 use Megaads\Clara\Commands\ModuleMakeCommand;
@@ -26,7 +27,8 @@ class ModuleServiceProvider extends ServiceProvider
         ModuleDisableCommand::class,
         ModuleListCommand::class,
         ModuleDownloadCommand::class,
-        ModuleSubmitCommand::class
+        ModuleSubmitCommand::class,
+        ModuleInstallCommand::class,
     ];
     /**
      * Bootstrap the application services.
@@ -35,14 +37,15 @@ class ModuleServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        // Adds a directive in Blade for actions
+        // Add Directive Blade for actions
         Blade::directive('action', function ($expression) {
             return "<?php Module::action({$expression}); ?>";
         });
-        // Adds a directive in Blade for views
+        // Add Directive Blade for views
         Blade::directive('view', function ($expression) {
             return "<?php echo Module::view({$expression}); ?>";
         });
+        // Add Directive Blade for variable
         Blade::directive('variable', function ($expression) {
             $expression = str_replace(', ', ',', $expression);
             $pos = strpos($expression, ',');
@@ -52,6 +55,10 @@ class ModuleServiceProvider extends ServiceProvider
                 $params = substr($expression, $pos + 1);
                 return "<?php \${$variable} = Module::variable({$params}); ?>";
             }
+        });
+        // Add Directive Blade for assets
+        Blade::directive('asset', function ($expression) {
+            return "<?php echo Module::asset({$expression}); ?>";
         });
         // Load enabled modules
         $moduleDir = app_path() . '/Modules/';
