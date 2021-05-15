@@ -2,6 +2,7 @@
 namespace Megaads\Clara\Commands;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Process\Process;
 
 class ModuleSubmitCommand extends AbtractCommand 
@@ -12,11 +13,7 @@ class ModuleSubmitCommand extends AbtractCommand
      * @var string
      */
     protected $signature = 'module:submit 
-                            {--update : [boolean] Set update module mode} 
-                            {--module= : [string] Module name} 
-                            {--branch= : [string] Branch name. Default is master} 
-                            {--updateDesc= : [string] Update description of module} 
-                            {--updateNamesapce= : [string] Update module namespace. Default auto generate from module name}';
+                            {--module= : [string] Module name}';
     /**
      * The console command description.
      *
@@ -33,68 +30,81 @@ class ModuleSubmitCommand extends AbtractCommand
      * Execute the console command.
      */
     public function handle() {
-        $isUpdate = $this->option('update');
-        if ($isUpdate) {
-            $branch = ($this->option('branch')) ? $this->option('branch') : $this->defaultBranch;
-            $moduleName = ($this->option('module')) ? $this->option('module') : NULL;
-            $moduleDesc = ($this->option('updateDesc')) ? $this->option('updateDesc') : NULL;
-            $moduleNamespace = ($this->option('updateNamesapce')) ? $this->option('updateNamesapce') : NULL;
-            $moduleImage = '';
-            if (!$moduleName) {
-                echo "Please enter the name of module that you want to update.\n Or run command php artisan module:submit --help to some information\n";
-                exit();
-            } else {
-                $findPackage = DB::table('app')->where('name', $moduleName)->first();
-                if ($findPackage) {
-                    $repo = $findPackage->repository;
-                    if (!$moduleDesc) {
-                        $moduleDesc = $findPackage->description;
-                    }
-                    if (!$moduleNamespace) {
-                        $moduleNamespace = $this->buildModuleNamespace($findPackage->name);
-                    }
-                }
-            }
-        } else {
-            $repo = $this->ask('What repository to deploy?');
-            $validate = $this->validateRepoUrl($repo);
-            //Run question util repository url  validated
-            while(!$validate['status']) {
-                echo "Wrong " . $validate['type'] . " repository. Please try again! \n";
-                $repo = $this->ask('What repository to deploy?');
-                $validate = $this->validateRepoUrl($repo);
-            }
-            $branch = $this->ask('What branch do you like to pull?', $this->defaultBranch);
-            $moduleName = $this->ask('What do you like package name?', ' ');
-            $moduleImage = $this->ask('Enter image of this package.', ' ');
-            $moduleDesc = $this->ask('Some description for this package.', ' ');
-            $moduleNamespace = $this->ask('Name space of Module?', ' ');
-            //Auto build module name if it null.
-            if ($moduleName == ' ') {
-                $moduleName = $this->getModuleName($repo, $validate['type']);
-            }
-            //Build module namespace if it null.
-            if ($moduleNamespace == ' ') {
-                $moduleNamespace = $this->buildModuleNamespace($moduleName);
+        $options = $this->options();
+        $moduleName = $options['module'];
+        if (!$moduleName) {
+            $moduleName = $this->ask("What's name of module want to submit?");
+        }
+        $modulePath = __DIR__.'/../../../../../app/Modules/' . $moduleName;
+        $moduleJson = $modulePath . '/module.json';
+        $moduleData = NULL;
+        $submitRs = NULL;
+        if (file_exists($moduleJson)) {
+            $jsonContent = file_get_contents($moduleJson);
+            $jsonContent = json_decode($jsonContent);
+            $moduleData = $this->prepareModuleInfo($jsonContent);
+            $zippedFile = $this->compressDirectory($moduleData['name_space'], $modulePath);
+            $moduleData['package_url'] = $this->uploadModule($moduleData['name_space'], $zippedFile);
+            if (!empty($moduleData['package_url'])) {
+                $submitRs = $this->saveOrUpdateModule($moduleData);
             }
         }
-        // Clone or pull from repository url
-        $this->downloadPackage($repo, $branch, $moduleName);
-        // Build insert params
-        $formatModuleName = $this->formatModuleFolderName($moduleName, false);
-        $insertParams = [
-            'name' => $moduleName,
-            'name_space' => $moduleNamespace,
-            'package_url' => url('/modules/' . $formatModuleName . '.zip'),
-            'description' => $moduleDesc, 
-            'image' => $moduleImage,
-            'repository' => $repo,
-            'category_id' => 1, 
-            'developer_id' => 1
-        ];
-        // Call function to insert params.
-        $this->saveOrUpdateModule($insertParams);
+        if (isset($submitRs->status) && $submitRs->status == 'successfull') {
+            $this->info("Module $moduleName was submited successfully.");
+            $this->removeDirectory($moduleName);
+        } else {
+            $msg = '';
+            if (isset($submitRs->message)) {
+                $msg = $submitRs->message;
+            }
+            $this->error("Has something wrong when submit module $moduleName. \n $msg");
+        }
     }
+
+    private function prepareModuleInfo($moduleInfo) {
+        $retval = [
+            'name' => '',
+            'description' => '', 
+            'name_space' => '',
+            'package_url' => '',
+            'image_url' => '',
+            'content' => '', 
+            'price' => 0,
+            'category_id' => 1,
+            'author_email' => '',
+            'author_name' => '',
+            'repository' => '',
+            'status' => 'active',
+            'meta' => []
+        ];
+
+        if (isset($moduleInfo->name)) {
+            $retval['name'] = $moduleInfo->name;
+            $retval['name_space'] = $this->formatModuleFolderName($moduleInfo->name, false);
+        }
+        if (isset($moduleInfo->image_url)) {
+            $retval['image_url'] = $moduleInfo->image_url;
+        }
+        if (isset($moduleInfo->description)) {
+            $retval['description'] = $moduleInfo->description;
+        }
+        if (isset($moduleInfo->require)) {
+            $retval['meta'] = [
+                'require' => $moduleInfo->require
+            ];
+        }
+        if (isset($moduleInfo->author_email)) {
+            $retval['author_email'] = $moduleInfo->author_email;
+        }
+        if (isset($moduleInfo->author_name)) {
+            $retval['author_name'] = $moduleInfo->author_name;
+        }
+        if (isset($moduleInfo->repository)) {
+            $retval['repository'] = $moduleInfo->repository;
+        }
+        return $retval;
+    }
+
     /**
      * Validate repository url format
      *
@@ -172,21 +182,9 @@ class ModuleSubmitCommand extends AbtractCommand
      * @return void
      */
     private function saveOrUpdateModule($params) {
-        $packageImage = $params['image'];
-        unset($params['image']);
-        //Find package by download url.
-        $findPackage = DB::table('app')->where('package_url', $params['package_url'])->first();
-        if ($findPackage) {
-            DB::table('app')->where('id', $findPackage->id)->update($params);
-        } else {
-            $getId = DB::table('app')->insertGetId($params);
-            if ($getId) {
-                DB::table('app_gallery')->insert([
-                    'app_id' => $getId,
-                    'image_url' => $packageImage
-                ]);
-            }
-        }
+        $retval = NULL;
+        $retval = $this->sendRequest('module/create', 'POST', $params);
+        return $retval;
     }
     /**
      * Compress module directory
@@ -194,21 +192,24 @@ class ModuleSubmitCommand extends AbtractCommand
      * @param [type] $moduleName
      * @return void
      */
-    private function compressDirectory($moduleName) {
-        $moduleName = $this->formatModuleFolderName($moduleName, false);
-        $modulePath = public_path('/modules/' . $moduleName);
-        $zipFileName = $moduleName . ".zip";
+    private function compressDirectory($moduleNamespace, $modulePath) {
+        $storage = Storage::disk('public');
+        if (!$storage->exists('modules')) {
+            $storage->makeDirectory('modules');
+        }
+        $zipFileName = $moduleNamespace . ".zip";
         $zipFile = new \ZipArchive();
-        $zipFile->open(public_path('modules/' . $zipFileName), \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+        $zipFile->open(storage_path('app/public/modules/' . $zipFileName), \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
         $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($modulePath));
         foreach ($files as $file) {
             if (!$file->isDir()) {
                 $filePath = $file->getRealPath();
-                $relativePath = $moduleName . '/' . substr($filePath, strlen($modulePath) + 1);
+                $relativePath = $moduleNamespace . '/' . substr($filePath, strlen($modulePath) + 1);
                 $zipFile->addFile($filePath, $relativePath);
             }
         }
         $zipFile->close();
+        return storage_path('app/public/modules/' . $zipFileName);
     }
     /**
      * Delete module directory after compress as zip file
@@ -218,7 +219,7 @@ class ModuleSubmitCommand extends AbtractCommand
      */
     private function removeDirectory($moduleName) {
         $moduleName = $this->formatModuleFolderName($moduleName, false);
-        $modulePath = public_path('modules/' . $moduleName);
+        $modulePath = storage_path('app/public/modules/' . $moduleName . '.zip');
         $deleteDir = new Process("rm -rf $modulePath");
         $deleteDir->run();
     }
@@ -285,11 +286,73 @@ class ModuleSubmitCommand extends AbtractCommand
     }
 
     private function formatModuleFolderName($moduleName, $getPath = true) {
-        $moduleName = preg_replace('/\s/i', '', $moduleName);
+        $moduleName = preg_replace('/\s/i', '-', $moduleName);
         $retval = public_path('/modules/' . $moduleName);
         if (!$getPath) {
             $retval = $moduleName;
         }
-        return $retval;
+        return strtolower($retval);
+    }
+
+    private function uploadModule($fileName, $filePath) {
+        $result = NULL;
+        $url = config('clara.app_store_url', '');
+        if (empty($url)) {
+            $this->error("Please provide app_store_url on configuration file.");
+            return NULL;
+        }
+        $fullUploadUrl = $url . 'module/upload';
+        $headers = ["Content-Type:multipart/form-data"];
+        $postData = [
+            'file' => curl_file_create("$filePath"),
+            'fileName' => $fileName
+        ];
+        $ch = curl_init($fullUploadUrl);
+        curl_setopt($ch, CURLOPT_HEADER, false);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+	    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+        curl_setopt($ch, CURLOPT_POST, true);
+
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+
+        $response = curl_exec($ch);
+        curl_close($ch);
+        $response = json_decode($response);
+        if (isset($response->status) && $response->status == 'successful') {
+            $result = $response->file_url;
+        }
+        return $result;
+    }
+
+    private function sendRequest($endPoint, $method = 'GET', $params, $headers = []) {
+        $url = config('clara.app_store_url', '');
+        if (empty($url)) {
+            $this->error("Please provide app_store_url on configuration file.");
+            return NULL;
+        }
+        if (empty($headers)) {
+            $headers = [
+                'Content-Type: application/json'
+            ];
+        }
+        $ch = curl_init($url . '/' . $endPoint);
+        curl_setopt($ch, CURLOPT_HEADER, false);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+	    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+        curl_setopt($ch, CURLOPT_POST, true);
+        if (strtolower($method) == 'post') {
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($params));
+        }
+
+        $response = curl_exec($ch);
+        curl_close($ch);
+        $response = json_decode($response);
+        return $response;
     }
 }

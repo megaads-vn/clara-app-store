@@ -40,6 +40,13 @@ By default the module classes are not loaded automatically. You can autoload you
     }
 }
 ```
+
+5. Publish file config
+
+With the module submit function, must have url configuration of store. To generate clara configuration file:
+```
+php artisan vendor:publish --provider="Megaads\Clara\Providers\ModuleServiceProvider"
+```
 ## Module Management
 
 ### Create module
@@ -219,7 +226,10 @@ Using blade statement
 ```php
 <script type="text/javascript" src="@asset('{module-namespace}/js/demo.js')"></script>
 ```
-
+### Create module asset link manually
+```
+php artisan module:asset:link <ModuleName> ...
+```
 ## Module Utility Methods
 
 ### Get all modules
